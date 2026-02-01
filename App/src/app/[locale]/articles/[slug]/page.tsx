@@ -1,15 +1,13 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { cookies } from 'next/headers';
 import { getArticleBySlug, getArticles, categoryLabels } from '@/lib/articles';
-import { LanguageCode, languages } from '@/lib/i18n/translations';
+import { type Locale } from '@/i18n/config';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 interface Props {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<{ lang?: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }
 
 export async function generateStaticParams() {
@@ -17,22 +15,9 @@ export async function generateStaticParams() {
   return articles.map((article) => ({ slug: article.slug }));
 }
 
-const validLangs = languages.map(l => l.code);
-
-export default async function ArticlePage({ params, searchParams }: Props) {
-  const { slug } = await params;
-  const { lang: langParam } = await searchParams;
-  const cookieStore = await cookies();
-  const langCookie = cookieStore.get('perky-lang');
-  
-  // Priority: query param > cookie > default
-  let lang: LanguageCode = 'en';
-  if (langParam && validLangs.includes(langParam)) {
-    lang = langParam as LanguageCode;
-  } else if (langCookie?.value && validLangs.includes(langCookie.value)) {
-    lang = langCookie.value as LanguageCode;
-  }
-  
+export default async function ArticlePage({ params }: Props) {
+  const { locale, slug } = await params;
+  const lang = locale as Locale;
   const article = await getArticleBySlug(slug, lang);
 
   if (!article) {
@@ -44,11 +29,11 @@ export default async function ArticlePage({ params, searchParams }: Props) {
       {/* Header */}
       <div className="bg-gradient-to-r from-[#0E0716] to-[#1a1a2e] text-white">
         <div className="container mx-auto max-w-4xl px-4 py-12">
-          <Link href="/" className="text-white/70 hover:text-white text-sm mb-4 inline-block">
+          <Link href={`/${locale}`} className="text-white/70 hover:text-white text-sm mb-4 inline-block">
             ← Back to Home
           </Link>
           <div className="flex items-center gap-2 mb-4">
-            <Link href={`/category/${article.category}`}>
+            <Link href={`/${locale}/category/${article.category}`}>
               <span className="text-xs font-semibold text-[#EB1B69] uppercase tracking-wide bg-white/10 px-3 py-1 rounded-full">
                 {categoryLabels[article.category] || article.category}
               </span>
@@ -173,22 +158,22 @@ function formatContent(content: string): string {
     return `<table class="w-full border-collapse my-6"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
   });
   
-  // Headings (FIXED: added $1 capture)
+  // Headings
   html = html.replace(/^### (.*)$/gm, '<h3 class="text-xl font-bold mt-6 mb-2">$1</h3>');
   html = html.replace(/^## (.*)$/gm, '<h2 class="text-2xl font-bold mt-8 mb-3">$1</h2>');
   html = html.replace(/^# (.*)$/gm, '<h1 class="text-3xl font-bold mt-8 mb-4">$1</h1>');
   
-  // Bold and italic (FIXED: added $1 capture)
+  // Bold and italic
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
   
-  // Links (FIXED: added $1 and $2 captures)
+  // Links
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-[#EB1B69] hover:underline">$1</a>');
   
   // Numbered lists
   html = html.replace(/^\d+\.\s+(.*)$/gm, '<li class="ml-4 list-decimal">$1</li>');
   
-  // Bullet lists (FIXED: added $1 capture)
+  // Bullet lists
   html = html.replace(/^[-*]\s+(.*)$/gm, '<li class="ml-4">$1</li>');
   
   // Horizontal rule

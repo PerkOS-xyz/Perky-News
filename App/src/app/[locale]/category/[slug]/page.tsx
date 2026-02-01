@@ -1,18 +1,14 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { getArticles, categoryLabels, Category, getAllCategories } from '@/lib/articles';
-import { LanguageCode, languages } from '@/lib/i18n/translations';
+import { type Locale } from '@/i18n/config';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 interface Props {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<{ lang?: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }
-
-const validLangs = languages.map(l => l.code);
 
 export function generateStaticParams() {
   return getAllCategories().map((category) => ({
@@ -20,19 +16,9 @@ export function generateStaticParams() {
   }));
 }
 
-export default async function CategoryPage({ params, searchParams }: Props) {
-  const { slug } = await params;
-  const { lang: langParam } = await searchParams;
-  const cookieStore = await cookies();
-  const langCookie = cookieStore.get('perky-lang');
-  
-  let lang: LanguageCode = 'en';
-  if (langParam && validLangs.includes(langParam)) {
-    lang = langParam as LanguageCode;
-  } else if (langCookie?.value && validLangs.includes(langCookie.value)) {
-    lang = langCookie.value as LanguageCode;
-  }
-  
+export default async function CategoryPage({ params }: Props) {
+  const { locale, slug } = await params;
+  const lang = locale as Locale;
   const category = slug as Category;
   
   if (!categoryLabels[category]) {
@@ -47,7 +33,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       {/* Header */}
       <div className="bg-gradient-to-r from-[#EB1B69] to-[#FD8F50] text-white py-12">
         <div className="container mx-auto max-w-6xl px-4">
-          <Link href="/" className="text-white/80 hover:text-white text-sm mb-4 inline-block">
+          <Link href={`/${locale}`} className="text-white/80 hover:text-white text-sm mb-4 inline-block">
             ← Back to Home
           </Link>
           <h1 className="text-4xl font-bold">{categoryName}</h1>
@@ -60,7 +46,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         {articles.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-gray-500 text-lg">No articles in this category yet.</p>
-            <Link href="/" className="text-[#EB1B69] hover:underline mt-4 inline-block">
+            <Link href={`/${locale}`} className="text-[#EB1B69] hover:underline mt-4 inline-block">
               Browse all articles
             </Link>
           </div>
@@ -68,7 +54,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {articles.map((article) => (
               <article key={article.slug} className="group">
-                <Link href={`/articles/${article.slug}`}>
+                <Link href={`/${locale}/articles/${article.slug}`}>
                   <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden mb-4">
                     <img 
                       src={article.coverImage || '/perkos-banner.jpg'} 

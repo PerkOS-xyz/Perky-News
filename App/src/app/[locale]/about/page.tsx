@@ -7,7 +7,12 @@ export const metadata: Metadata = {
   description: 'Learn about Perky News, your source for Web3 AI ecosystem news covering x402, ERC-8004, AI agents, and more.',
 };
 
-export default function AboutPage() {
+interface Props {
+  params: Promise<{ locale: string }>;
+}
+
+export default async function AboutPage({ params }: Props) {
+  const { locale } = await params;
   return (
     <div className="py-20 px-4">
       <div className="container mx-auto max-w-3xl">
@@ -131,7 +136,7 @@ export default function AboutPage() {
             Subscribe to our weekly newsletter and never miss an important update.
           </p>
           <Button asChild size="lg">
-            <Link href="/subscribe">Subscribe Now</Link>
+            <Link href={`/${locale}/subscribe`}>Subscribe Now</Link>
           </Button>
         </section>
       </div>

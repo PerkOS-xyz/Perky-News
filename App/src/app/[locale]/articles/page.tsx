@@ -1,7 +1,6 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
 import { getArticles, getAllCategories, categoryLabels, type Category, type Article } from '@/lib/articles';
-import { LanguageCode, languages } from '@/lib/i18n/translations';
+import { type Locale } from '@/i18n/config';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -18,22 +17,14 @@ const categoryIcons: Record<Category, string> = {
 };
 
 interface Props {
-  searchParams: Promise<{ category?: string; lang?: string }>;
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ category?: string }>;
 }
 
-const validLangs = languages.map(l => l.code);
-
-export default async function ArticlesPage({ searchParams }: Props) {
-  const { category: categoryFilter, lang: langParam } = await searchParams;
-  const cookieStore = await cookies();
-  const langCookie = cookieStore.get('perky-lang');
-  
-  let lang: LanguageCode = 'en';
-  if (langParam && validLangs.includes(langParam)) {
-    lang = langParam as LanguageCode;
-  } else if (langCookie?.value && validLangs.includes(langCookie.value)) {
-    lang = langCookie.value as LanguageCode;
-  }
+export default async function ArticlesPage({ params, searchParams }: Props) {
+  const { locale } = await params;
+  const { category: categoryFilter } = await searchParams;
+  const lang = locale as Locale;
   
   const categories = getAllCategories();
   const articles = await getArticles(categoryFilter as Category || undefined, lang);
@@ -43,7 +34,7 @@ export default async function ArticlesPage({ searchParams }: Props) {
       {/* Header */}
       <div className="bg-gradient-to-r from-[#0E0716] to-[#1a1a2e] text-white py-16">
         <div className="container mx-auto max-w-6xl px-4">
-          <Link href="/" className="text-white/70 hover:text-white text-sm mb-4 inline-block">
+          <Link href={`/${locale}`} className="text-white/70 hover:text-white text-sm mb-4 inline-block">
             ← Back to Home
           </Link>
           <h1 className="text-4xl font-bold">All Articles</h1>
@@ -55,7 +46,7 @@ export default async function ArticlesPage({ searchParams }: Props) {
       <div className="container mx-auto max-w-6xl px-4 py-8">
         <div className="flex flex-wrap gap-3 mb-8">
           <Link
-            href="/articles"
+            href={`/${locale}/articles`}
             className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
               !categoryFilter
                 ? 'bg-[#EB1B69] text-white'
@@ -67,7 +58,7 @@ export default async function ArticlesPage({ searchParams }: Props) {
           {categories.map((cat) => (
             <Link
               key={cat}
-              href={`/articles?category=${cat}`}
+              href={`/${locale}/articles?category=${cat}`}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                 categoryFilter === cat
                   ? 'bg-[#EB1B69] text-white'
@@ -83,13 +74,13 @@ export default async function ArticlesPage({ searchParams }: Props) {
         {articles.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {articles.map((article) => (
-              <ArticleCard key={article.slug} article={article} />
+              <ArticleCard key={article.slug} article={article} locale={locale} />
             ))}
           </div>
         ) : (
           <div className="text-center py-20">
             <p className="text-gray-500 text-lg">No articles found.</p>
-            <Link href="/articles" className="text-[#EB1B69] hover:underline mt-4 inline-block">
+            <Link href={`/${locale}/articles`} className="text-[#EB1B69] hover:underline mt-4 inline-block">
               View all articles
             </Link>
           </div>
@@ -99,9 +90,9 @@ export default async function ArticlesPage({ searchParams }: Props) {
   );
 }
 
-function ArticleCard({ article }: { article: Article }) {
+function ArticleCard({ article, locale }: { article: Article; locale: string }) {
   return (
-    <Link href={`/articles/${article.slug}`} className="group">
+    <Link href={`/${locale}/articles/${article.slug}`} className="group">
       <div className="rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
         <div className="aspect-video bg-gray-100 overflow-hidden">
           <img

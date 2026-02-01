@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
 import { Sora, Outfit } from "next/font/google";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
-import { LanguageProvider } from "@/lib/i18n";
 import "./globals.css";
 
 const sora = Sora({
@@ -21,28 +18,13 @@ const outfit = Outfit({
 
 export const metadata: Metadata = {
   title: "Perky News — The Agent Economy Chronicle",
-  description: "Your definitive source for x402, ERC-8004, AI agents, and Web3 infrastructure news. Deep analysis for builders shaping the agent economy.",
-  keywords: ["x402", "ERC-8004", "AI agents", "Web3", "crypto", "DeFi", "ElizaOS", "OpenClaw", "agent economy"],
-  authors: [{ name: "PerkOS Team" }],
+  description: "Your definitive source for x402, ERC-8004, AI agents, and Web3 infrastructure news.",
+  keywords: ["x402", "ERC-8004", "AI agents", "Web3", "crypto", "DeFi", "ElizaOS", "OpenClaw"],
   openGraph: {
     title: "Perky News — The Agent Economy Chronicle",
     description: "Deep analysis of x402, ERC-8004, AI agents, and the infrastructure powering Web3's next chapter.",
     type: "website",
     siteName: "Perky News",
-    images: [
-      {
-        url: "/perkos-banner.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Perky News - The Agent Economy Chronicle",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Perky News — The Agent Economy Chronicle",
-    description: "Deep analysis of x402, ERC-8004, AI agents, and the infrastructure powering Web3's next chapter.",
-    images: ["/perkos-banner.jpg"],
   },
 };
 
@@ -52,24 +34,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="">
+    <html className={`${sora.variable} ${outfit.variable}`}>
       <body 
-        className={`${sora.variable} ${outfit.variable} antialiased min-h-screen flex flex-col`}
+        className="antialiased min-h-screen flex flex-col"
         style={{ 
           fontFamily: 'var(--font-outfit), system-ui, sans-serif',
           backgroundColor: '#FFFFFF',
           color: '#0E0716'
         }}
       >
-        <LanguageProvider>
-          <div className="noise-overlay">
-            <Header />
-            <main className="flex-1">
-              {children}
-            </main>
-            <Footer />
-          </div>
-        </LanguageProvider>
+        {children}
       </body>
     </html>
   );

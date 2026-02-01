@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { LanguageCode, translations, detectBrowserLanguage, getTranslation } from './translations';
+import React, { createContext, useContext, ReactNode } from 'react';
+import { LanguageCode, translations, getTranslation } from './translations';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface LanguageContextType {
   language: LanguageCode;
@@ -11,50 +12,31 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'perky-news-language';
-const COOKIE_NAME = 'perky-lang';
-
-function setCookie(lang: LanguageCode) {
-  document.cookie = `${COOKIE_NAME}=${lang};path=/;max-age=31536000;SameSite=Lax`;
+interface Props {
+  children: ReactNode;
+  initialLocale?: LanguageCode;
 }
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<LanguageCode>('en');
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as LanguageCode | null;
-    if (stored && ['en', 'es', 'fr', 'it', 'de', 'ja', 'ko', 'zh'].includes(stored)) {
-      setLanguageState(stored);
-      setCookie(stored);
-    } else {
-      const detected = detectBrowserLanguage();
-      setLanguageState(detected);
-      localStorage.setItem(STORAGE_KEY, detected);
-      setCookie(detected);
-    }
-    setMounted(true);
-  }, []);
+export function LanguageProvider({ children, initialLocale = 'en' }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  
+  const language = initialLocale;
 
   const setLanguage = (lang: LanguageCode) => {
-    setLanguageState(lang);
-    localStorage.setItem(STORAGE_KEY, lang);
-    setCookie(lang);
-    // Navigate with lang query param to bust cache
-    const url = new URL(window.location.href);
-    url.searchParams.set('lang', lang);
-    window.location.href = url.toString();
+    // Set cookie for middleware
+    document.cookie = `perky-lang=${lang};path=/;max-age=31536000;SameSite=Lax`;
+    
+    // Navigate to new locale path
+    // Current path is like /en/articles/slug, we need to replace /en with /es
+    const segments = pathname.split('/');
+    segments[1] = lang; // Replace locale segment
+    const newPath = segments.join('/');
+    
+    router.push(newPath);
   };
 
   const t = getTranslation(language);
-
-  if (!mounted) {
-    return (
-      <LanguageContext.Provider value={{ language: 'en', setLanguage, t: translations.en }}>
-        {children}
-      </LanguageContext.Provider>
-    );
-  }
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t }}>
