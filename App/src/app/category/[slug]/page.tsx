@@ -2,6 +2,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getArticles, categoryLabels, Category, getAllCategories } from '@/lib/articles';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 60;
+
 interface Props {
   params: Promise<{ slug: string }>;
 }
@@ -20,7 +23,7 @@ export default async function CategoryPage({ params }: Props) {
     notFound();
   }
 
-  const articles = getArticles(category);
+  const articles = await getArticles(category);
   const categoryName = categoryLabels[category];
 
   return (

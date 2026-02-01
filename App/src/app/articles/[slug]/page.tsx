@@ -1,163 +1,156 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { NewsletterForm } from '@/components/newsletter-form';
-import { getArticleBySlug, getArticles, categoryLabels, categoryColors } from '@/lib/articles';
+import Link from 'next/link';
+import { getArticleBySlug, getArticles, categoryLabels } from '@/lib/articles';
 
-interface ArticlePageProps {
+export const dynamic = 'force-dynamic';
+export const revalidate = 60;
+
+interface Props {
   params: Promise<{ slug: string }>;
 }
 
 export async function generateStaticParams() {
-  const articles = getArticles();
+  const articles = await getArticles();
   return articles.map((article) => ({
     slug: article.slug,
   }));
 }
 
-export async function generateMetadata({ params }: ArticlePageProps) {
+export default async function ArticlePage({ params }: Props) {
   const { slug } = await params;
-  const article = getArticleBySlug(slug);
-  
-  if (!article) {
-    return { title: 'Article Not Found' };
-  }
-
-  return {
-    title: `${article.title} | Perky News`,
-    description: article.excerpt,
-    openGraph: {
-      title: article.title,
-      description: article.excerpt,
-      type: 'article',
-      publishedTime: article.publishedAt,
-      authors: [article.author],
-    },
-  };
-}
-
-export default async function ArticlePage({ params }: ArticlePageProps) {
-  const { slug } = await params;
-  const article = getArticleBySlug(slug);
+  const article = await getArticleBySlug(slug);
 
   if (!article) {
     notFound();
   }
 
   return (
-    <article className="py-12 px-4">
-      <div className="container mx-auto max-w-3xl">
-        {/* Breadcrumb */}
-        <nav className="mb-8 text-sm text-zinc-400">
-          <Link href="/" className="hover:text-zinc-100">Home</Link>
-          <span className="mx-2">/</span>
-          <Link href="/articles" className="hover:text-zinc-100">Articles</Link>
-          <span className="mx-2">/</span>
-          <span className="text-zinc-100">{article.title}</span>
-        </nav>
-
-        {/* Header */}
-        <header className="mb-12">
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-[#0E0716] to-[#1a1a2e] text-white">
+        <div className="container mx-auto max-w-4xl px-4 py-12">
+          <Link href="/" className="text-white/70 hover:text-white text-sm mb-4 inline-block">
+            ← Back to Home
+          </Link>
           <div className="flex items-center gap-2 mb-4">
-            <span className={`text-xs px-2 py-1 rounded-full ${categoryColors[article.category]}`}>
-              {categoryLabels[article.category]}
-            </span>
-            {article.featured && (
-              <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                Featured
+            <Link href={`/category/${article.category}`}>
+              <span className="text-xs font-semibold text-[#EB1B69] uppercase tracking-wide bg-white/10 px-3 py-1 rounded-full">
+                {categoryLabels[article.category] || article.category}
               </span>
+            </Link>
+            <span className="text-white/50 text-sm">{article.publishedAt}</span>
+            {article.readingTime && (
+              <span className="text-white/50 text-sm">• {article.readingTime} min read</span>
             )}
           </div>
+          <h1 className="text-4xl font-bold leading-tight">{article.title}</h1>
+          <p className="text-white/80 mt-4 text-lg">{article.excerpt}</p>
           
-          <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
-            {article.title}
-          </h1>
-          
-          <p className="text-xl text-zinc-400 mb-6">
-            {article.excerpt}
-          </p>
-
-          <div className="flex items-center justify-between text-sm text-zinc-400 border-y border-zinc-700 py-4">
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-2">
-                <span className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
-                  🐧
-                </span>
-                {article.author}
-              </span>
+          {/* Author */}
+          <div className="flex items-center gap-3 mt-6">
+            <img 
+              src={article.authorAvatar || '/perky-mascot.jpg'} 
+              alt={article.author}
+              className="w-12 h-12 rounded-full border-2 border-[#EB1B69]"
+            />
+            <div>
+              <p className="font-semibold">{article.author}</p>
+              {article.authorEmail && (
+                <p className="text-white/60 text-sm">{article.authorEmail}</p>
+              )}
             </div>
-            <time dateTime={article.publishedAt}>
-              {new Date(article.publishedAt).toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric',
-              })}
-            </time>
           </div>
-        </header>
+        </div>
+      </div>
 
-        {/* Cover Image Placeholder */}
-        {article.coverImage && (
-          <div className="mb-12 rounded-xl overflow-hidden bg-gradient-to-br from-purple-500/20 to-purple-600/20 h-64 flex items-center justify-center">
-            <span className="text-8xl">🐧</span>
+      {/* Cover Image */}
+      {article.coverImage && (
+        <div className="container mx-auto max-w-4xl px-4 -mt-6">
+          <div className="aspect-video rounded-lg overflow-hidden shadow-xl">
+            <img 
+              src={article.coverImage} 
+              alt={article.title}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Content */}
+      <article className="container mx-auto max-w-4xl px-4 py-12">
+        <div 
+          className="prose prose-lg max-w-none prose-headings:text-[#0E0716] prose-a:text-[#EB1B69] prose-strong:text-[#0E0716]"
+          dangerouslySetInnerHTML={{ __html: formatContent(article.content) }}
+        />
+
+        {/* Sources */}
+        {article.sources && article.sources.length > 0 && (
+          <div className="mt-12 pt-8 border-t border-gray-200">
+            <h3 className="font-bold text-lg mb-4">Sources</h3>
+            <ul className="space-y-2">
+              {article.sources.map((source, i) => (
+                <li key={i}>
+                  <a 
+                    href={source.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-[#EB1B69] hover:underline"
+                  >
+                    {source.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
-        {/* Content */}
-        <div className="prose prose-lg prose-invert max-w-none mb-12 prose-headings:text-zinc-100 prose-p:text-zinc-300 prose-a:text-purple-400 prose-strong:text-zinc-100 prose-code:text-purple-300 prose-pre:bg-zinc-800">
-          <div dangerouslySetInnerHTML={{ __html: formatContent(article.content) }} />
-        </div>
-
         {/* Tags */}
-        <div className="mb-12 flex flex-wrap gap-2">
-          {article.tags.map((tag) => (
-            <span
-              key={tag}
-              className="px-3 py-1 bg-zinc-800 rounded-full text-sm text-zinc-400"
-            >
-              #{tag}
-            </span>
-          ))}
-        </div>
-
-        {/* Newsletter CTA */}
-        <div className="bg-zinc-800/50 rounded-xl p-8 text-center">
-          <h3 className="text-xl font-bold mb-2">Enjoyed this article?</h3>
-          <p className="text-zinc-400 mb-6">
-            Subscribe to Perky News for weekly updates on x402, ERC-8004, and AI agents.
-          </p>
-          <div className="flex justify-center">
-            <NewsletterForm variant="inline" />
+        {article.tags && article.tags.length > 0 && (
+          <div className="mt-8 flex flex-wrap gap-2">
+            {article.tags.map((tag) => (
+              <span 
+                key={tag}
+                className="px-3 py-1 bg-gray-100 text-gray-600 text-sm rounded-full"
+              >
+                #{tag}
+              </span>
+            ))}
           </div>
-        </div>
+        )}
 
-        {/* Back to Articles */}
-        <div className="mt-12 text-center">
-          <Button variant="outline" asChild>
-            <Link href="/articles">← Back to Articles</Link>
-          </Button>
-        </div>
-      </div>
-    </article>
+        {/* Author Bio */}
+        {article.authorBio && (
+          <div className="mt-12 p-6 bg-gradient-to-r from-[#EB1B69]/10 to-[#FD8F50]/10 rounded-lg">
+            <div className="flex items-start gap-4">
+              <img 
+                src={article.authorAvatar || '/perky-mascot.jpg'} 
+                alt={article.author}
+                className="w-16 h-16 rounded-full border-2 border-[#EB1B69]"
+              />
+              <div>
+                <h4 className="font-bold text-lg">About {article.author}</h4>
+                <p className="text-gray-600 mt-2">{article.authorBio}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </article>
+    </div>
   );
 }
 
-// Simple markdown-like formatting - in production, use MDX properly
+// Simple markdown-like formatting
 function formatContent(content: string): string {
   return content
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code>$1</code>')
-    .replace(/```(\w+)?\n([\s\S]+?)```/g, '<pre><code>$2</code></pre>')
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-purple-400 hover:underline">$1</a>')
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>.+<\/li>\n?)+/g, '<ul>$&</ul>')
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/^(.+)$/gm, (match) => {
-      if (match.startsWith('<')) return match;
-      return `<p>${match}</p>`;
-    });
+    .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-8 mb-4"></h1>')
+    .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-8 mb-3"></h2>')
+    .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold mt-6 mb-2"></h3>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong></strong>')
+    .replace(/\*(.*?)\*/g, '<em></em>')
+    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="" target="_blank" rel="noopener noreferrer"></a>')
+    .replace(/^- (.*$)/gm, '<li class="ml-4"></li>')
+    .replace(/(<li.*<\/li>)/s, '<ul class="list-disc my-4"></ul>')
+    .replace(/\n\n/g, '</p><p class="my-4">')
+    .replace(/^(?!<)(.+)$/gm, '<p class="my-4"></p>')
+    .replace(/<p class="my-4"><\/p>/g, '');
 }
