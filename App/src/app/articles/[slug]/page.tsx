@@ -139,18 +139,42 @@ export default async function ArticlePage({ params }: Props) {
   );
 }
 
-// Simple markdown-like formatting
 function formatContent(content: string): string {
-  return content
-    .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-8 mb-4"></h1>')
-    .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-8 mb-3"></h2>')
-    .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold mt-6 mb-2"></h3>')
+  let html = content
+    .replace(/^# (.*)$/gm, '<h1 class="text-3xl font-bold mt-8 mb-4"></h1>')
+    .replace(/^## (.*)$/gm, '<h2 class="text-2xl font-bold mt-8 mb-3"></h2>')
+    .replace(/^### (.*)$/gm, '<h3 class="text-xl font-bold mt-6 mb-2"></h3>')
     .replace(/\*\*(.*?)\*\*/g, '<strong></strong>')
     .replace(/\*(.*?)\*/g, '<em></em>')
-    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="" target="_blank" rel="noopener noreferrer"></a>')
-    .replace(/^- (.*$)/gm, '<li class="ml-4"></li>')
-    .replace(/(<li.*<\/li>)/s, '<ul class="list-disc my-4"></ul>')
-    .replace(/\n\n/g, '</p><p class="my-4">')
-    .replace(/^(?!<)(.+)$/gm, '<p class="my-4"></p>')
-    .replace(/<p class="my-4"><\/p>/g, '');
+    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="" target="_blank" rel="noopener noreferrer" class="text-[#EB1B69] hover:underline"></a>')
+    .replace(/^- (.*)$/gm, '<li class="ml-4"></li>');
+  
+  // Wrap li in ul (simple approach)
+  const lines = html.split('\n');
+  let inList = false;
+  const processed: string[] = [];
+  
+  for (const line of lines) {
+    if (line.includes('<li')) {
+      if (!inList) {
+        processed.push('<ul class="list-disc my-4 pl-6">');
+        inList = true;
+      }
+      processed.push(line);
+    } else {
+      if (inList) {
+        processed.push('</ul>');
+        inList = false;
+      }
+      processed.push(line);
+    }
+  }
+  if (inList) processed.push('</ul>');
+  
+  html = processed.join('\n');
+  
+  // Paragraphs
+  html = html.replace(/\n\n/g, '</p><p class="my-4">');
+  
+  return html;
 }
