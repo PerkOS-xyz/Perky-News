@@ -1,164 +1,134 @@
+#!/usr/bin/env node
+/**
+ * Generate Professional Article Cover Images
+ * Uses Replicate FLUX for high-quality images
+ */
+
+import Replicate from 'replicate';
 import admin from 'firebase-admin';
-import { readFileSync } from 'fs';
-import https from 'https';
-import http from 'http';
+import { readFileSync, existsSync } from 'fs';
 
-// Initialize Firebase Admin
-if (!admin.apps.length) {
-  const serviceAccount = JSON.parse(
-    readFileSync('/root/.config/firebase/perky-news-sa.json', 'utf8')
-  );
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: 'perky-news.firebasestorage.app'
-  });
+const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
+if (!REPLICATE_API_TOKEN) {
+  console.error('❌ REPLICATE_API_TOKEN not set');
+  process.exit(1);
 }
 
-const db = admin.firestore();
-const bucket = admin.storage().bucket();
+const replicate = new Replicate({ auth: REPLICATE_API_TOKEN });
 
-const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN;
-
-// Generate image prompt from article
-function generatePrompt(article) {
-  const categoryStyles = {
-    'x402': 'futuristic digital payment network, blockchain nodes, flowing data streams, purple and blue neon',
-    'erc-8004': 'AI robot with ethereum logo, digital identity card, trust network visualization, blue and orange',
-    'ai-agents': 'autonomous AI agents working together, neural network, robots collaborating, green tech aesthetic',
-    'defi': 'decentralized finance visualization, yield farming, liquidity pools, golden and green',
-    'openclaw': 'open source AI framework, code visualization, modular architecture, orange tech theme',
-    'eliza': 'crypto AI agent, trading bot, blockchain integration, pink and purple cyberpunk',
-    'general': 'technology news, digital innovation, modern tech aesthetic, clean minimal'
-  };
-  
-  const style = categoryStyles[article.category] || categoryStyles.general;
-  
-  return `Professional tech blog header image: ${article.title}. Style: ${style}. Modern, clean, high quality, 16:9 aspect ratio, no text, abstract visualization`;
-}
-
-// Call Replicate API directly
-async function callReplicate(prompt) {
-  // Create prediction
-  const createRes = await fetch('https://api.replicate.com/v1/predictions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Token ${REPLICATE_TOKEN}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      version: '5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637',
-      input: {
-        prompt: prompt,
-        num_outputs: 1,
-        aspect_ratio: '16:9'
-      }
-    })
-  });
-  
-  const prediction = await createRes.json();
-  
-  // Poll for completion
-  let result = prediction;
-  while (result.status !== 'succeeded' && result.status !== 'failed') {
-    await new Promise(r => setTimeout(r, 1000));
-    const pollRes = await fetch(result.urls.get, {
-      headers: { 'Authorization': `Token ${REPLICATE_TOKEN}` }
-    });
-    result = await pollRes.json();
+// Professional prompts for each article
+const ARTICLE_PROMPTS = {
+  'a2a-protocol-google-linux-foundation': {
+    prompt: 'Futuristic abstract visualization of AI agents communicating through digital pathways, glowing neural network connections, Google and Linux Foundation style, corporate tech aesthetic, blue and white color scheme, professional illustration, 4K, clean minimal design, no text',
+    title: 'A2A Protocol'
+  },
+  'agent-protocol-stack-a2a-mcp-x402-erc8004': {
+    prompt: 'Abstract layered architecture diagram visualization, four interconnected glowing layers representing protocol stack, futuristic blockchain and AI fusion, purple and cyan gradients, clean minimal tech illustration, isometric 3D style, professional corporate aesthetic, no text',
+    title: 'Agent Protocol Stack'
+  },
+  'erc-8004-trustless-agents-ethereum-standard': {
+    prompt: 'Futuristic AI robot with Ethereum diamond logo integrated into its design, digital identity concept, holographic ID card floating, blockchain nodes in background, orange and purple gradient, professional tech illustration, clean minimal style, no text',
+    title: 'ERC-8004'
+  },
+  'ethglobal-2026-hackathon-calendar': {
+    prompt: 'Vibrant collage of 5 iconic city skylines (Brussels, Prague, Bangkok, San Francisco, Cannes) connected by glowing digital lines, hackathon energy, developers coding, Ethereum logo subtle in sky, colorful festival atmosphere, professional event poster style, no text',
+    title: 'ETHGlobal 2026'
+  },
+  'x402-v2-multi-chain-payments-100m-transactions': {
+    prompt: 'Abstract futuristic network visualization with glowing interconnected nodes, multiple blockchain chains merging into central hub, digital streams flowing, professional tech illustration, green and teal color scheme, clean minimal design, corporate fintech aesthetic, no text no numbers',
+    title: 'x402 V2'
   }
-  
-  if (result.status === 'failed') {
-    throw new Error(result.error || 'Generation failed');
-  }
-  
-  return result.output[0];
-}
+};
 
-// Download image from URL
-async function downloadImage(url) {
-  return new Promise((resolve, reject) => {
-    const protocol = url.startsWith('https') ? https : http;
-    protocol.get(url, (response) => {
-      if (response.statusCode === 301 || response.statusCode === 302) {
-        downloadImage(response.headers.location).then(resolve).catch(reject);
-        return;
-      }
-      const chunks = [];
-      response.on('data', (chunk) => chunks.push(chunk));
-      response.on('end', () => resolve(Buffer.concat(chunks)));
-      response.on('error', reject);
-    }).on('error', reject);
-  });
-}
-
-// Upload to Firebase Storage
-async function uploadToStorage(buffer, filename) {
-  const file = bucket.file(`articles/${filename}`);
-  
-  await file.save(buffer, {
-    metadata: { contentType: 'image/png' },
-  });
-  
-  await file.makePublic();
-  
-  return `https://storage.googleapis.com/${bucket.name}/articles/${filename}`;
-}
-
-// Generate image for article
-async function generateImage(article) {
-  console.log(`\n🎨 Generating: ${article.slug}`);
-  
-  const prompt = generatePrompt(article);
-  console.log(`   Prompt: ${prompt.substring(0, 60)}...`);
+async function generateImage(slug, promptData) {
+  console.log(`\n🎨 Generating image for: ${promptData.title}`);
+  console.log(`   Prompt: ${promptData.prompt.substring(0, 80)}...`);
   
   try {
-    const imageUrl = await callReplicate(prompt);
-    console.log(`   Generated: ${imageUrl.substring(0, 50)}...`);
+    const output = await replicate.run(
+      "black-forest-labs/flux-1.1-pro",
+      {
+        input: {
+          prompt: promptData.prompt,
+          aspect_ratio: "16:9",
+          output_format: "webp",
+          output_quality: 90,
+          safety_tolerance: 5,
+          prompt_upsampling: true
+        }
+      }
+    );
     
-    console.log(`   Downloading...`);
-    const imageBuffer = await downloadImage(imageUrl);
-    
-    console.log(`   Uploading to Storage...`);
-    const filename = `${article.slug}.png`;
-    const storageUrl = await uploadToStorage(imageBuffer, filename);
-    
-    await db.collection('articles').doc(article.slug).update({
-      coverImage: storageUrl,
-      imageGeneratedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-    
-    console.log(`   ✅ Done: ${storageUrl}`);
-    return storageUrl;
-    
-  } catch (error) {
-    console.error(`   ❌ Error: ${error.message}`);
+    // Convert to string if needed
+    const imageUrl = typeof output === 'string' ? output : String(output);
+    console.log(`   ✓ Generated: ${imageUrl}`);
+    return imageUrl;
+  } catch (err) {
+    console.error(`   ✗ Failed: ${err.message}`);
     return null;
   }
 }
 
-// Main
+function initFirebase() {
+  if (admin.apps.length) return;
+  const saPath = process.env.HOME + '/.config/firebase/perky-news-sa.json';
+  if (existsSync(saPath)) {
+    const sa = JSON.parse(readFileSync(saPath, 'utf8'));
+    admin.initializeApp({ 
+      credential: admin.credential.cert(sa),
+      storageBucket: 'perky-news.firebasestorage.app'
+    });
+  }
+}
+
 async function main() {
-  console.log('🖼️  Generating images for articles...');
+  const args = process.argv.slice(2);
+  const specificSlug = args[0];
   
-  const snapshot = await db.collection('articles').get();
+  console.log('🖼️  Perky News - Image Generator\n');
   
-  for (const doc of snapshot.docs) {
-    const article = { slug: doc.id, ...doc.data() };
+  // Generate images
+  const results = {};
+  
+  for (const [slug, promptData] of Object.entries(ARTICLE_PROMPTS)) {
+    if (specificSlug && slug !== specificSlug) continue;
     
-    if (article.coverImage?.includes('storage.googleapis.com')) {
-      console.log(`⏭️  Skip: ${article.slug} (has image)`);
-      continue;
+    const imageUrl = await generateImage(slug, promptData);
+    if (imageUrl) {
+      results[slug] = imageUrl;
     }
     
-    await generateImage(article);
-    await new Promise(r => setTimeout(r, 1000));
+    // Rate limit
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  
+  // Update Firebase with new image URLs
+  if (Object.keys(results).length > 0) {
+    console.log('\n📤 Updating Firebase...');
+    initFirebase();
+    const db = admin.firestore();
+    
+    for (const [slug, imageUrl] of Object.entries(results)) {
+      try {
+        await db.collection('articles').doc(slug).update({
+          coverImage: String(imageUrl),
+          imageUpdatedAt: new Date().toISOString()
+        });
+        console.log(`   ✓ Updated ${slug}`);
+      } catch (err) {
+        console.error(`   ✗ Failed to update ${slug}: ${err.message}`);
+      }
+    }
   }
   
   console.log('\n🎉 Done!');
-  process.exit(0);
+  console.log('\nGenerated images:');
+  for (const [slug, url] of Object.entries(results)) {
+    console.log(`  ${slug}: ${url}`);
+  }
 }
 
 main().catch(err => {
-  console.error('❌ Fatal:', err);
+  console.error('❌ Error:', err.message);
   process.exit(1);
 });
