@@ -1,8 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { useLanguage } from '@/lib/i18n';
+import { LanguageSelector } from './LanguageSelector';
 
 export function Header() {
+  const { t } = useLanguage();
+
   return (
     <header className="bg-white border-b border-gray-100">
       <div className="container mx-auto max-w-6xl px-4">
@@ -24,23 +28,26 @@ export function Header() {
           {/* Navigation */}
           <nav className="hidden md:flex items-center gap-6">
             <Link href="/" className="text-sm font-medium text-gray-600 hover:text-[#EB1B69]">
-              News
+              {t.nav.news}
             </Link>
             <Link href="/articles" className="text-sm font-medium text-gray-600 hover:text-[#EB1B69]">
-              Articles
+              {t.nav.articles}
             </Link>
             <Link href="/about" className="text-sm font-medium text-gray-600 hover:text-[#EB1B69]">
-              About
+              {t.nav.about}
             </Link>
           </nav>
 
-          {/* Subscribe Button */}
-          <Link 
-            href="/subscribe"
-            className="px-4 py-2 bg-[#EB1B69] text-white text-sm font-semibold rounded-lg hover:bg-[#d01860] transition-colors"
-          >
-            Subscribe
-          </Link>
+          {/* Right side: Language + Subscribe */}
+          <div className="flex items-center gap-3">
+            <LanguageSelector />
+            <Link 
+              href="/subscribe"
+              className="px-4 py-2 bg-[#EB1B69] text-white text-sm font-semibold rounded-lg hover:bg-[#d01860] transition-colors"
+            >
+              {t.nav.subscribe}
+            </Link>
+          </div>
         </div>
       </div>
     </header>

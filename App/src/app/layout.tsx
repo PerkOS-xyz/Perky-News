@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Sora, Outfit } from "next/font/google";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { LanguageProvider } from "@/lib/i18n";
 import "./globals.css";
 
 const sora = Sora({
@@ -60,13 +61,15 @@ export default function RootLayout({
           color: '#0E0716'
         }}
       >
-        <div className="noise-overlay">
-          <Header />
-          <main className="flex-1">
-            {children}
-          </main>
-          <Footer />
-        </div>
+        <LanguageProvider>
+          <div className="noise-overlay">
+            <Header />
+            <main className="flex-1">
+              {children}
+            </main>
+            <Footer />
+          </div>
+        </LanguageProvider>
       </body>
     </html>
   );
