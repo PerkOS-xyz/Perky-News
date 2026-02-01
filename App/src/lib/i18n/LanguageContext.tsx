@@ -40,7 +40,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(lang);
     localStorage.setItem(STORAGE_KEY, lang);
     setCookie(lang);
-    window.location.reload();
+    // Small delay to ensure cookie is written before reload
+    setTimeout(() => {
+      window.location.reload();
+    }, 50);
   };
 
   const t = getTranslation(language);
