@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Articles - public read
+    match /articles/{articleId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // Topics - public read
+    match /topics/{topicId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // Settings - public read
+    match /settings/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // Research - no public access
+    match /research/{docId} {
+      allow read, write: if false;
+    }
+  }
+}
