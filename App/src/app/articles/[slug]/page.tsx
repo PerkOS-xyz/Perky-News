@@ -2,13 +2,14 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { getArticleBySlug, getArticles, categoryLabels } from '@/lib/articles';
-import { LanguageCode } from '@/lib/i18n/translations';
+import { LanguageCode, languages } from '@/lib/i18n/translations';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 interface Props {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ lang?: string }>;
 }
 
 export async function generateStaticParams() {
@@ -16,11 +17,22 @@ export async function generateStaticParams() {
   return articles.map((article) => ({ slug: article.slug }));
 }
 
-export default async function ArticlePage({ params }: Props) {
+const validLangs = languages.map(l => l.code);
+
+export default async function ArticlePage({ params, searchParams }: Props) {
   const { slug } = await params;
+  const { lang: langParam } = await searchParams;
   const cookieStore = await cookies();
   const langCookie = cookieStore.get('perky-lang');
-  const lang = (langCookie?.value as LanguageCode) || 'en';
+  
+  // Priority: query param > cookie > default
+  let lang: LanguageCode = 'en';
+  if (langParam && validLangs.includes(langParam)) {
+    lang = langParam as LanguageCode;
+  } else if (langCookie?.value && validLangs.includes(langCookie.value)) {
+    lang = langCookie.value as LanguageCode;
+  }
+  
   const article = await getArticleBySlug(slug, lang);
 
   if (!article) {

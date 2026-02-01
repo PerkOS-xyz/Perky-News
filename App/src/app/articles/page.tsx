@@ -1,8 +1,10 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { getArticles, getAllCategories, categoryLabels, type Category, type Article } from '@/lib/articles';
+import { LanguageCode, languages } from '@/lib/i18n/translations';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 60;
+export const revalidate = 0;
 
 const categoryIcons: Record<Category, string> = {
   'x402': '💰',
@@ -16,13 +18,25 @@ const categoryIcons: Record<Category, string> = {
 };
 
 interface Props {
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{ category?: string; lang?: string }>;
 }
 
+const validLangs = languages.map(l => l.code);
+
 export default async function ArticlesPage({ searchParams }: Props) {
-  const { category: categoryFilter } = await searchParams;
+  const { category: categoryFilter, lang: langParam } = await searchParams;
+  const cookieStore = await cookies();
+  const langCookie = cookieStore.get('perky-lang');
+  
+  let lang: LanguageCode = 'en';
+  if (langParam && validLangs.includes(langParam)) {
+    lang = langParam as LanguageCode;
+  } else if (langCookie?.value && validLangs.includes(langCookie.value)) {
+    lang = langCookie.value as LanguageCode;
+  }
+  
   const categories = getAllCategories();
-  const articles = await getArticles(categoryFilter as Category || undefined);
+  const articles = await getArticles(categoryFilter as Category || undefined, lang);
 
   return (
     <div className="min-h-screen bg-white">

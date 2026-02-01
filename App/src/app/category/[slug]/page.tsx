@@ -1,13 +1,18 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { getArticles, categoryLabels, Category, getAllCategories } from '@/lib/articles';
+import { LanguageCode, languages } from '@/lib/i18n/translations';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 60;
+export const revalidate = 0;
 
 interface Props {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ lang?: string }>;
 }
+
+const validLangs = languages.map(l => l.code);
 
 export function generateStaticParams() {
   return getAllCategories().map((category) => ({
@@ -15,15 +20,26 @@ export function generateStaticParams() {
   }));
 }
 
-export default async function CategoryPage({ params }: Props) {
+export default async function CategoryPage({ params, searchParams }: Props) {
   const { slug } = await params;
+  const { lang: langParam } = await searchParams;
+  const cookieStore = await cookies();
+  const langCookie = cookieStore.get('perky-lang');
+  
+  let lang: LanguageCode = 'en';
+  if (langParam && validLangs.includes(langParam)) {
+    lang = langParam as LanguageCode;
+  } else if (langCookie?.value && validLangs.includes(langCookie.value)) {
+    lang = langCookie.value as LanguageCode;
+  }
+  
   const category = slug as Category;
   
   if (!categoryLabels[category]) {
     notFound();
   }
 
-  const articles = await getArticles(category);
+  const articles = await getArticles(category, lang);
   const categoryName = categoryLabels[category];
 
   return (

@@ -1,15 +1,29 @@
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { getArticles } from '@/lib/articles';
-import { LanguageCode } from '@/lib/i18n/translations';
+import { LanguageCode, languages } from '@/lib/i18n/translations';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function Home() {
+interface Props {
+  searchParams: Promise<{ lang?: string }>;
+}
+
+const validLangs = languages.map(l => l.code);
+
+export default async function Home({ searchParams }: Props) {
+  const { lang: langParam } = await searchParams;
   const cookieStore = await cookies();
   const langCookie = cookieStore.get('perky-lang');
-  const lang = (langCookie?.value as LanguageCode) || 'en';
+  
+  // Priority: query param > cookie > default
+  let lang: LanguageCode = 'en';
+  if (langParam && validLangs.includes(langParam)) {
+    lang = langParam as LanguageCode;
+  } else if (langCookie?.value && validLangs.includes(langCookie.value)) {
+    lang = langCookie.value as LanguageCode;
+  }
 
   const allArticles = await getArticles(undefined, lang);
   const featured = allArticles.find(a => a.featured) || allArticles[0];
