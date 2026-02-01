@@ -2,19 +2,11 @@
 
 /**
  * Translate Articles Script
- * 
- * Uses Firebase Client SDK (same as the app) and Anthropic API for translations.
- * 
- * Setup:
- *   cp .env.example .env
- *   # Fill in your Firebase and Anthropic credentials
- *   npm install
- *   node translate-articles.js [--slug article-slug] [--category hackathons]
+ * Uses Firebase Admin SDK (with service account) and Anthropic API.
  */
 
 require('dotenv').config();
-const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, getDocs, doc, updateDoc, query, where } = require('firebase/firestore');
+const admin = require('firebase-admin');
 
 // Config
 const LANGUAGES = ['en', 'es', 'fr', 'it', 'de', 'ja', 'ko', 'zh'];
@@ -23,18 +15,17 @@ const LANGUAGE_NAMES = {
   de: 'German', ja: 'Japanese', ko: 'Korean', zh: 'Chinese (Simplified)'
 };
 
-// Firebase init
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'perky-news',
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+// Firebase Admin init with service account from env
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
+if (!serviceAccount.project_id) {
+  console.error('❌ FIREBASE_SERVICE_ACCOUNT not set or invalid');
+  process.exit(1);
+}
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+const db = admin.firestore();
 
 // Translation via Anthropic
 async function translate(text, targetLang, context = 'article') {
@@ -58,12 +49,15 @@ async function translate(text, targetLang, context = 'article') {
     })
   });
 
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`API error: ${res.status} - ${err}`);
+  }
   const data = await res.json();
   return data.content[0].text;
 }
 
-// Get English content from field (handles string or object)
+// Get English content
 function getEnglish(field) {
   if (!field) return '';
   if (typeof field === 'string') return field;
@@ -80,7 +74,7 @@ function needsTranslation(article) {
 }
 
 // Translate one article
-async function translateArticle(docRef, article, slug) {
+async function translateArticle(docRef, article) {
   const enTitle = getEnglish(article.title);
   const enExcerpt = getEnglish(article.excerpt);
   const enContent = getEnglish(article.content);
@@ -97,7 +91,6 @@ async function translateArticle(docRef, article, slug) {
   for (const lang of LANGUAGES) {
     if (lang === 'en') continue;
 
-    // Skip if already translated
     if (article.title?.[lang] && article.excerpt?.[lang] && article.content?.[lang]) {
       title[lang] = article.title[lang];
       excerpt[lang] = article.excerpt[lang];
@@ -111,13 +104,13 @@ async function translateArticle(docRef, article, slug) {
       excerpt[lang] = await translate(enExcerpt, lang, 'article excerpt');
       content[lang] = await translate(enContent, lang, 'article content');
       console.log(' ✓');
-      await new Promise(r => setTimeout(r, 500)); // Rate limit
+      await new Promise(r => setTimeout(r, 500));
     } catch (err) {
       console.log(` ❌ ${err.message}`);
     }
   }
 
-  await updateDoc(docRef, { title, excerpt, content });
+  await docRef.update({ title, excerpt, content });
   console.log(`   💾 Saved to Firebase`);
   return true;
 }
@@ -134,23 +127,23 @@ async function main() {
   console.log('🌍 Perky News Article Translator\n');
   
   if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('❌ ANTHROPIC_API_KEY not set. Copy .env.example to .env and configure.');
+    console.error('❌ ANTHROPIC_API_KEY not set');
     process.exit(1);
   }
 
-  let articlesQuery;
+  let snapshot;
   if (filterSlug) {
     console.log(`📄 Translating single article: ${filterSlug}\n`);
-    articlesQuery = query(collection(db, 'articles'), where('__name__', '==', filterSlug));
+    const doc = await db.collection('articles').doc(filterSlug).get();
+    snapshot = { docs: doc.exists ? [doc] : [], size: doc.exists ? 1 : 0 };
   } else if (filterCategory) {
     console.log(`📁 Translating category: ${filterCategory}\n`);
-    articlesQuery = query(collection(db, 'articles'), where('category', '==', filterCategory));
+    snapshot = await db.collection('articles').where('category', '==', filterCategory).get();
   } else {
     console.log(`📚 Translating ALL articles\n`);
-    articlesQuery = collection(db, 'articles');
+    snapshot = await db.collection('articles').get();
   }
 
-  const snapshot = await getDocs(articlesQuery);
   console.log(`Found ${snapshot.size} article(s)\n`);
 
   let translated = 0, skipped = 0;
@@ -168,7 +161,7 @@ async function main() {
       continue;
     }
 
-    const success = await translateArticle(doc(db, 'articles', docSnap.id), article, docSnap.id);
+    const success = await translateArticle(docSnap.ref, article);
     if (success) translated++;
     console.log();
   }
