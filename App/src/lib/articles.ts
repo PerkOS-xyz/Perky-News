@@ -1,5 +1,6 @@
-// Server-side article fetching using Firebase Admin SDK
-// This replaces the hardcoded articles with Firebase data
+// Client SDK approach for Netlify compatibility
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore, collection, getDocs, doc, getDoc, query, where, orderBy, limit } from 'firebase/firestore';
 
 export type Category = 'x402' | 'erc-8004' | 'ai-agents' | 'openclaw' | 'eliza' | 'defi' | 'general';
 
@@ -41,55 +42,46 @@ export const categoryColors: Record<Category, string> = {
   'general': 'bg-gray-100 text-gray-800',
 };
 
-// Firebase Admin initialization (server-side only)
-let adminInitialized = false;
-let db: FirebaseFirestore.Firestore | null = null;
+// Firebase config
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
 
-async function getDb() {
-  if (db) return db;
-  
-  // Dynamic import to avoid client-side issues
-  const admin = await import('firebase-admin');
-  
-  if (!adminInitialized && admin.apps.length === 0) {
-    // Use environment variable for service account
-    const serviceAccount = JSON.parse(
-      process.env.FIREBASE_SERVICE_ACCOUNT || '{}'
-    );
-    
-    if (serviceAccount.project_id) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
-      adminInitialized = true;
-    }
-  }
-  
-  db = admin.firestore();
-  return db;
+// Initialize Firebase
+function getDb() {
+  const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+  return getFirestore(app);
 }
 
-// Fetch articles from Firebase
 export async function getArticles(category?: Category): Promise<Article[]> {
   try {
-    const firestore = await getDb();
-    if (!firestore) return [];
-    
-    let query = firestore.collection('articles')
-      .where('status', '==', 'published')
-      .orderBy('publishedAt', 'desc');
+    const db = getDb();
+    let q;
     
     if (category) {
-      query = firestore.collection('articles')
-        .where('category', '==', category)
-        .where('status', '==', 'published')
-        .orderBy('publishedAt', 'desc');
+      q = query(
+        collection(db, 'articles'),
+        where('category', '==', category),
+        where('status', '==', 'published'),
+        orderBy('publishedAt', 'desc')
+      );
+    } else {
+      q = query(
+        collection(db, 'articles'),
+        where('status', '==', 'published'),
+        orderBy('publishedAt', 'desc')
+      );
     }
     
-    const snapshot = await query.get();
-    return snapshot.docs.map(doc => ({
-      slug: doc.id,
-      ...doc.data()
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({
+      slug: d.id,
+      ...d.data()
     } as Article));
   } catch (error) {
     console.error('Error fetching articles:', error);
@@ -99,13 +91,12 @@ export async function getArticles(category?: Category): Promise<Article[]> {
 
 export async function getArticleBySlug(slug: string): Promise<Article | undefined> {
   try {
-    const firestore = await getDb();
-    if (!firestore) return undefined;
+    const db = getDb();
+    const docRef = doc(db, 'articles', slug);
+    const docSnap = await getDoc(docRef);
     
-    const doc = await firestore.collection('articles').doc(slug).get();
-    
-    if (doc.exists) {
-      return { slug: doc.id, ...doc.data() } as Article;
+    if (docSnap.exists()) {
+      return { slug: docSnap.id, ...docSnap.data() } as Article;
     }
     return undefined;
   } catch (error) {
@@ -116,19 +107,19 @@ export async function getArticleBySlug(slug: string): Promise<Article | undefine
 
 export async function getFeaturedArticles(): Promise<Article[]> {
   try {
-    const firestore = await getDb();
-    if (!firestore) return [];
+    const db = getDb();
+    const q = query(
+      collection(db, 'articles'),
+      where('status', '==', 'published'),
+      where('featured', '==', true),
+      orderBy('publishedAt', 'desc'),
+      limit(5)
+    );
     
-    const snapshot = await firestore.collection('articles')
-      .where('status', '==', 'published')
-      .where('featured', '==', true)
-      .orderBy('publishedAt', 'desc')
-      .limit(5)
-      .get();
-    
-    return snapshot.docs.map(doc => ({
-      slug: doc.id,
-      ...doc.data()
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({
+      slug: d.id,
+      ...d.data()
     } as Article));
   } catch (error) {
     console.error('Error fetching featured:', error);
