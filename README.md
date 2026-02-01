@@ -14,6 +14,67 @@ Your source for Web3 AI ecosystem news. Covering x402, ERC-8004, AI agents, and 
 - 🎨 **Tailwind CSS v4** - Modern styling
 - 📱 **Mobile Responsive** - Works on all devices
 
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph Frontend["Frontend (Next.js 15)"]
+        UI[React Components]
+        I18N[Language Context]
+        Pages[App Router]
+    end
+    
+    subgraph Backend["Backend (Firebase)"]
+        FS[(Firestore)]
+        Storage[(Storage)]
+    end
+    
+    subgraph AI["AI Services"]
+        OR[OpenRouter/Claude]
+        REP[Replicate/FLUX]
+    end
+    
+    UI --> I18N
+    Pages --> FS
+    FS --> |articles| Pages
+    Storage --> |images| Pages
+    OR --> |translations| FS
+    REP --> |cover images| Storage
+```
+
+## Content Workflow
+
+```mermaid
+sequenceDiagram
+    participant W as Winston (AI)
+    participant S as Scripts
+    participant OR as OpenRouter
+    participant FB as Firebase
+    participant N as Netlify
+    
+    W->>S: Create article (EN)
+    S->>OR: Translate to 7 languages
+    OR-->>S: Translations
+    S->>FB: Save multi-lang article
+    W->>S: Generate cover image
+    S->>FB: Update coverImage URL
+    FB-->>N: Auto-deploy trigger
+    N-->>N: Build & Deploy
+```
+
+## Multi-Language Flow
+
+```mermaid
+flowchart LR
+    User([User]) --> Header[Language Selector]
+    Header --> Cookie[(Cookie: perky-lang)]
+    Cookie --> Server[Server Component]
+    Server --> FB[(Firebase)]
+    FB --> |content.es/fr/de...| Server
+    Server --> Page[Localized Page]
+    Page --> User
+```
+
 ## Project Structure
 
 ```
