@@ -91,6 +91,29 @@ export default function Home() {
 
           {/* Sidebar */}
           <aside className="lg:w-1/3 lg:pl-8 lg:border-l border-gray-200">
+            {/* Perky - Hero Section */}
+            <section className="mb-8 text-center">
+              <img 
+                src="/perky-mascot.jpg" 
+                alt="Perky - Your AI Agent Guide" 
+                className="w-32 h-32 mx-auto rounded-full border-4 border-[#EB1B69] shadow-lg"
+              />
+              <h3 className="font-bold text-xl text-[#0E0716] mt-4">
+                Meet Perky
+              </h3>
+              <p className="text-sm text-gray-600 mt-2 leading-relaxed">
+                Your friendly guide to the agent economy. Perky curates the latest news on AI agents, Web3 protocols, and the future of autonomous systems.
+              </p>
+              <div className="flex items-center justify-center gap-2 mt-3">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#EB1B69]/10 text-[#EB1B69]">
+                  🤖 AI-Powered
+                </span>
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#FD8F50]/10 text-[#FD8F50]">
+                  ⚡ Always Learning
+                </span>
+              </div>
+            </section>
+
             {/* Most Popular */}
             <section className="mb-8">
               <h2 className="text-lg font-bold text-[#EB1B69] mb-4">
@@ -138,16 +161,6 @@ export default function Home() {
                 Subscribe
               </button>
             </section>
-
-            {/* Perky */}
-            <div className="mt-8 text-center">
-              <img 
-                src="/perky-mascot.jpg" 
-                alt="Perky" 
-                className="w-16 h-16 mx-auto rounded-full"
-              />
-              <p className="text-xs text-gray-400 mt-2">Powered by Perky</p>
-            </div>
           </aside>
         </div>
       </div>
