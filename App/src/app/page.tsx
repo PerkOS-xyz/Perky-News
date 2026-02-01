@@ -1,11 +1,14 @@
 import Link from 'next/link';
-import { getArticles } from '@/lib/articles';
+import { getArticles, getFeaturedArticles } from '@/lib/articles';
 
-export default function Home() {
-  const articles = getArticles();
-  const featured = articles.find(a => a.featured);
-  const latest = articles.filter(a => !a.featured).slice(0, 6);
-  const popular = articles.slice(0, 5);
+export const dynamic = 'force-dynamic';
+export const revalidate = 60; // Revalidate every 60 seconds
+
+export default async function Home() {
+  const allArticles = await getArticles();
+  const featured = allArticles.find(a => a.featured) || allArticles[0];
+  const latest = allArticles.filter(a => a.slug !== featured?.slug).slice(0, 6);
+  const popular = allArticles.slice(0, 5);
 
   return (
     <div className="min-h-screen bg-white">
@@ -16,7 +19,7 @@ export default function Home() {
             {['x402', 'ERC-8004', 'AI Agents', 'OpenClaw', 'ElizaOS', 'DeFi'].map((cat) => (
               <Link 
                 key={cat} 
-                href={`/category/${cat.toLowerCase()}`}
+                href={`/category/${cat.toLowerCase().replace(' ', '-')}`}
                 className="text-gray-600 hover:text-[#EB1B69] whitespace-nowrap font-medium transition-colors"
               >
                 {cat}
