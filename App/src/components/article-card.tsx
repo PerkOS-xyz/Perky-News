@@ -14,6 +14,7 @@ const categoryClasses: Record<Category, string> = {
   'eliza': 'cat-eliza',
   'defi': 'cat-defi',
   'general': 'cat-general',
+  'hackathons': 'cat-hackathons',
 };
 
 const categoryIcons: Record<Category, string> = {
@@ -24,6 +25,7 @@ const categoryIcons: Record<Category, string> = {
   'eliza': '💜',
   'defi': '📈',
   'general': '📰',
+  'hackathons': '🏆',
 };
 
 export function ArticleCard({ article, featured = false }: ArticleCardProps) {
