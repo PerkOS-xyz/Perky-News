@@ -11,6 +11,7 @@ const categoryIcons: Record<Category, string> = {
   'openclaw': '🦊',
   'eliza': '💜',
   'defi': '📈',
+  'hackathons': '🏆',
   'general': '📰',
 };
 
